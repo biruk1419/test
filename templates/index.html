@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Camera Feed</title>
+</head>
+<body>
+    <h1>Live Camera Feed from Phone</h1>
+    <video id="video" width="100%" height="auto" autoplay></video>
+
+    <script>
+        // Access the phone's camera using the getUserMedia API
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+            })
+            .catch(err => {
+                console.error('Error accessing camera: ', err);
+            });
+    </script>
+</body>
+</html>
