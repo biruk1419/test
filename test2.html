@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camera Access and WebRTC</title>
+</head>
+<body>
+  <h1>Access Your Camera</h1>
+  <video id="video" width="100%" height="auto" autoplay></video>
+
+  <script>
+    // Request access to the camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(function(stream) {
+        // Attach the video stream to the <video> element
+        document.getElementById('video').srcObject = stream;
+
+        // Now, set up WebRTC for streaming this video to another device (like your Mac)
+        var socket = new WebSocket('ws://localhost:8080'); // Connect to WebSocket server
+        var peerConnection = new RTCPeerConnection();
+
+        // Add the local media stream to the WebRTC connection
+        peerConnection.addStream(stream);
+
+        // Send WebRTC signaling data to the WebSocket server
+        socket.onopen = function() {
+          // For example, send an offer (you will need to implement offer/answer signaling)
+          var offer = peerConnection.createOffer();
+          peerConnection.setLocalDescription(offer);
+          socket.send(JSON.stringify(offer)); // Send offer to the server
+        };
+
+        // Listen for messages from the WebSocket server
+        socket.onmessage = function(event) {
+          var message = JSON.parse(event.data);
+          // Handle WebRTC signaling messages (e.g., answer, ICE candidates)
+          if (message.type === 'answer') {
+            peerConnection.setRemoteDescription(new RTCSessionDescription(message));
+          } else if (message.type === 'candidate') {
+            peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate));
+          }
+        };
+
+      })
+      .catch(function(err) {
+        console.log('Error accessing camera: ' + err);
+      });
+  </script>
+</body>
+</html>
