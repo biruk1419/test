@@ -1,41 +1,43 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phone Camera Stream</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.min.js"></script>
+    <title>Live Camera Feed</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body>
-    <h1>Phone Camera Stream</h1>
-    <video id="videoElement" width="640" height="480" autoplay></video>
+    <h1>Live Camera Feed from Phone</h1>
+    <video id="video" width="100%" height="auto" autoplay></video>
 
     <script>
-        const socket = io.connect('http://localhost:5002');  // Connect to Flask-SocketIO server
+        const video = document.getElementById('video');
+        const socket = io();
 
-        const videoElement = document.getElementById("videoElement");  // Your video element
+        // Request access to the phone's camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+                const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
 
-        // Start capturing video from webcam
-        videoElement.addEventListener('play', () => {
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
+                // When data is available, send it to the server via WebSockets
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(event.data);
+                        reader.onloadend = () => {
+                            socket.emit('video_frame', reader.result);
+                        };
+                    }
+                };
 
-            function sendFrame() {
-                if (videoElement.paused || videoElement.ended) return;
-
-                canvas.width = videoElement.videoWidth;
-                canvas.height = videoElement.videoHeight;
-                context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
-
-                const frame = canvas.toDataURL('image/jpeg');  // Convert video frame to base64
-
-                socket.emit('video_frame', frame);  // Send frame to server
-                requestAnimationFrame(sendFrame);  // Continuously send frames
-            }
-
-            sendFrame();  // Start sending frames
-        });
+                // Start recording the video in chunks (100ms intervals)
+                mediaRecorder.start(100);
+            })
+            .catch(err => {
+                console.error('Error accessing camera: ', err);
+                alert("Please enable camera permissions.");
+            });
     </script>
 </body>
 </html>
